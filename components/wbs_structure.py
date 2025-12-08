@@ -78,13 +78,13 @@ def wbs_structure_view(data: Dict[str, List[Dict]]):
 
     st.markdown("### WBS構造と期間")
 
-    with st.expander("構造順テーブル (予定・実績日を編集可能)", expanded=True):
+    with st.expander("構造順テーブル", expanded=True):
         edited_df = st.data_editor(
             wbs_df,
             hide_index=True,
             disabled=["id", "display_name"],
             column_config={
-                "display_name": st.column_config.Column("WBS名 (インデントは階層を表します)"),
+                "display_name": st.column_config.Column("WBS名 "),
                 "start_date": st.column_config.DateColumn("開始予定日"),
                 "end_date": st.column_config.DateColumn("終了予定日"),
                 "actual_start_date": st.column_config.DateColumn("実績開始日"),
