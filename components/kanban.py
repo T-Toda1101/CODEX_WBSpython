@@ -23,44 +23,42 @@ def kanban_view(data: Dict[str, List[Dict]], wbs_filter: Optional[str], wbs_map:
     ]
 
     st.subheader("かんばんボード")
-    columns = st.columns(len(STATUSES))
 
-    for status, column in zip(STATUSES, columns):
-        with column:
-            st.markdown(f"### {status}")
-            column_tasks = [t for t in filtered_tasks if t["status"] == status]
-            if not column_tasks:
-                st.caption("タスクなし")
-            for task in column_tasks:
-                with st.container(border=True):
-                    st.markdown(f"**{task['title']}**")
-                    st.caption(f"WBS: {wbs_label(wbs_map, task['wbs_id'])}")
-                    meta = []
-                    if task.get("priority"):
-                        meta.append(f"優先度: {task['priority']}")
-                    if task.get("due"):
-                        meta.append(f"期日: {task['due']}")
-                    if meta:
-                        st.caption(" / ".join(meta))
-                    if task.get("description"):
-                        st.write(task["description"])
+    for status in STATUSES:
+        st.markdown(f"### {status}")
+        column_tasks = [t for t in filtered_tasks if t["status"] == status]
+        if not column_tasks:
+            st.caption("タスクなし")
+        for task in column_tasks:
+            with st.container(border=True):
+                st.markdown(f"**{task['title']}**")
+                st.caption(f"WBS: {wbs_label(wbs_map, task['wbs_id'])}")
+                meta = []
+                if task.get("priority"):
+                    meta.append(f"優先度: {task['priority']}")
+                if task.get("due"):
+                    meta.append(f"期日: {task['due']}")
+                if meta:
+                    st.caption(" / ".join(meta))
+                if task.get("description"):
+                    st.write(task["description"])
 
-                    with st.form(f"update_{task['id']}"):
-                        new_status = st.selectbox(
-                            "ステータス変更",
-                            STATUSES,
-                            index=STATUSES.index(task["status"]),
-                            key=f"select_{task['id']}",
-                        )
-                        col1, col2 = st.columns([2, 1])
-                        with col1:
-                            submitted = st.form_submit_button("更新")
-                        with col2:
-                            removed = st.form_submit_button("削除", type="secondary")
-                        if submitted and new_status != task["status"]:
-                            update_task_status(data, task["id"], new_status)
-                        if removed:
-                            delete_task(data, task["id"])
+                with st.form(f"update_{task['id']}"):
+                    new_status = st.selectbox(
+                        "ステータス変更",
+                        STATUSES,
+                        index=STATUSES.index(task["status"]),
+                        key=f"select_{task['id']}",
+                    )
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        submitted = st.form_submit_button("更新")
+                    with col2:
+                        removed = st.form_submit_button("削除", type="secondary")
+                    if submitted and new_status != task["status"]:
+                        update_task_status(data, task["id"], new_status)
+                    if removed:
+                        delete_task(data, task["id"])
 
 
 def status_summary(tasks: List[Dict]):
