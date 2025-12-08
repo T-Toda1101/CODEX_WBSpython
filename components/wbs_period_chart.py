@@ -1,8 +1,8 @@
 from datetime import date
 from typing import Optional
 
-import altair as alt
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 
@@ -55,58 +55,67 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
     )
 
     y_order = filtered_df["display_name"].tolist()
-    today_df = pd.DataFrame({"today": [pd.to_datetime(date.today())]})
 
-    layers = []
+    fig = go.Figure()
+
     if filtered_has_planned.any():
-        planned_bars = (
-            alt.Chart(filtered_df[filtered_has_planned])
-            .mark_bar(size=14, color="#4C78A8")
-            .encode(
-                x=alt.X(
-                    "start_date:T",
-                    title="期間",
-                    scale=alt.Scale(
-                        domain=[pd.to_datetime(chart_start), pd.to_datetime(chart_end)]
-                    ),
-                    axis=alt.Axis(format="%Y-%m-%d", labelAngle=-45),
+        planned_df = filtered_df[filtered_has_planned].copy()
+        planned_df["duration"] = planned_df["end_date"] - planned_df["start_date"]
+        fig.add_trace(
+            go.Bar(
+                x=planned_df["duration"],
+                base=planned_df["start_date"],
+                y=planned_df["display_name"],
+                orientation="h",
+                name="予定",
+                marker_color="#4C78A8",
+                customdata=planned_df[["end_date"]],
+                hovertemplate=(
+                    "<b>%{y}</b><br>開始予定: %{base|%Y-%m-%d}<br>終了予定: "
+                    "%{customdata[0]|%Y-%m-%d}<extra></extra>"
                 ),
-                x2="end_date:T",
-                y=alt.Y("display_name:N", sort=y_order, title="WBS (構造順)"),
-                tooltip=["display_name", "start_date:T", "end_date:T"],
             )
         )
-        layers.append(planned_bars)
 
     if filtered_has_actual.any():
-        actual_lines = (
-            alt.Chart(filtered_df[filtered_has_actual])
-            .mark_rule(color="#f28e2c", strokeWidth=3)
-            .encode(
-                x=alt.X("actual_start_date:T", title="期間"),
-                x2="actual_end_date:T",
-                y=alt.Y("display_name:N", sort=y_order, title="WBS (構造順)"),
-                tooltip=[
-                    "display_name",
-                    alt.Tooltip("actual_start_date:T", title="実績開始"),
-                    alt.Tooltip("actual_end_date:T", title="実績終了"),
-                ],
+        actual_df = filtered_df[filtered_has_actual].copy()
+        first_actual = True
+        for _, row in actual_df.iterrows():
+            fig.add_trace(
+                go.Scatter(
+                    x=[row["actual_start_date"], row["actual_end_date"]],
+                    y=[row["display_name"], row["display_name"]],
+                    mode="lines+markers",
+                    line=dict(color="#f28e2c", width=4),
+                    marker=dict(color="#f28e2c", size=8),
+                    name="実績",
+                    showlegend=first_actual,
+                    customdata=[[row["actual_start_date"], row["actual_end_date"]]] * 2,
+                    hovertemplate=(
+                        "<b>%{y}</b><br>実績開始: %{customdata[0]|%Y-%m-%d}<br>実績終了: "
+                        "%{customdata[1]|%Y-%m-%d}<extra></extra>"
+                    ),
+                )
             )
-        )
-        layers.append(actual_lines)
+            first_actual = False
 
-    today_rule = (
-        alt.Chart(today_df)
-        .mark_rule(color="#d62728", strokeDash=[6, 4])
-        .encode(x="today:T")
+    fig.add_vline(
+        x=pd.to_datetime(date.today()),
+        line_color="#d62728",
+        line_dash="dash",
+        annotation_text="今日",
+        annotation_position="top left",
     )
-    layers.append(today_rule)
 
-    chart = (
-        alt.layer(*layers)
-        .properties(height=max(120, 40 * len(y_order)))
-        .configure_axis(grid=True)
+    fig.update_layout(
+        barmode="overlay",
+        height=max(120, 40 * len(y_order)),
+        xaxis_title="期間",
+        yaxis_title="WBS (構造順)",
+        xaxis_range=[pd.to_datetime(chart_start), pd.to_datetime(chart_end)],
+        legend_title="凡例",
     )
+    fig.update_yaxes(categoryorder="array", categoryarray=y_order)
 
     st.markdown("#### 期間グラフ")
-    st.altair_chart(chart, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
