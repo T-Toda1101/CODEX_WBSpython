@@ -237,6 +237,27 @@ def flatten_wbs_with_levels(wbs_items: List[Dict]) -> List[Dict]:
     return ordered
 
 
+def normalize_date_value(value: Optional[object]) -> Optional[str]:
+    """Convert mixed date inputs from data_editor rows to ISO strings."""
+
+    if pd.isna(value):
+        return None
+
+    if isinstance(value, pd.Timestamp):
+        return value.date().isoformat()
+
+    if isinstance(value, date):
+        return value.isoformat()
+
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value).isoformat()
+        except ValueError:
+            return None
+
+    return None
+
+
 def wbs_structure_view(data: Dict[str, List[Dict]]):
     wbs_items = data.get("wbs", [])
     if not wbs_items:
@@ -282,8 +303,8 @@ def wbs_structure_view(data: Dict[str, List[Dict]]):
                 target = next((i for i in data["wbs"] if i["id"] == row["id"]), None)
                 if not target:
                     continue
-                new_start = row["start_date"].isoformat() if pd.notna(row["start_date"]) else None
-                new_end = row["end_date"].isoformat() if pd.notna(row["end_date"]) else None
+                new_start = normalize_date_value(row.get("start_date"))
+                new_end = normalize_date_value(row.get("end_date"))
                 if target.get("start_date") != new_start or target.get("end_date") != new_end:
                     target["start_date"] = new_start
                     target["end_date"] = new_end
