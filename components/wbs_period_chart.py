@@ -99,8 +99,12 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
             )
             first_actual = False
 
+    today = pd.to_datetime(date.today()).to_pydatetime()
+    chart_start_dt = pd.to_datetime(chart_start).to_pydatetime()
+    chart_end_dt = pd.to_datetime(chart_end).to_pydatetime()
+
     fig.add_vline(
-        x=pd.to_datetime(date.today()),
+        x=today,
         line_color="#d62728",
         line_dash="dash",
         annotation_text="今日",
@@ -112,7 +116,7 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
         height=max(120, 40 * len(y_order)),
         xaxis_title="期間",
         yaxis_title="WBS (構造順)",
-        xaxis_range=[pd.to_datetime(chart_start), pd.to_datetime(chart_end)],
+        xaxis_range=[chart_start_dt, chart_end_dt],
         legend_title="凡例",
     )
     fig.update_yaxes(categoryorder="array", categoryarray=y_order)
