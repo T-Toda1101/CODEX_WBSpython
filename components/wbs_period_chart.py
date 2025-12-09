@@ -12,8 +12,12 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
     for column in date_columns:
         chart_df[column] = pd.to_datetime(chart_df[column], errors="coerce").dt.date
 
+    chart_df["actual_end_for_chart"] = chart_df["actual_end_date"]
+    missing_actual_end = chart_df["actual_start_date"].notna() & chart_df["actual_end_date"].isna()
+    chart_df.loc[missing_actual_end, "actual_end_for_chart"] = date.today()
+
     has_planned = chart_df["start_date"].notna() & chart_df["end_date"].notna()
-    has_actual = chart_df["actual_start_date"].notna() & chart_df["actual_end_date"].notna()
+    has_actual = chart_df["actual_start_date"].notna()
 
     if not (has_planned.any() or has_actual.any()):
         st.info("開始・終了予定日または実績日が設定されたWBSがありません。日付を入力してください。")
@@ -27,7 +31,7 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
         latest_dates.append(chart_df.loc[has_planned, "end_date"].max())
     if has_actual.any():
         earliest_dates.append(chart_df.loc[has_actual, "actual_start_date"].min())
-        latest_dates.append(chart_df.loc[has_actual, "actual_end_date"].max())
+        latest_dates.append(chart_df.loc[has_actual, "actual_end_for_chart"].max())
 
     col1, col2 = st.columns(2)
     default_start: Optional[date] = min(earliest_dates)
@@ -49,10 +53,7 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
     filtered_has_planned = (
         filtered_df["start_date"].notna() & filtered_df["end_date"].notna()
     )
-    filtered_has_actual = (
-        filtered_df["actual_start_date"].notna()
-        & filtered_df["actual_end_date"].notna()
-    )
+    filtered_has_actual = filtered_df["actual_start_date"].notna()
 
     y_order = filtered_df["display_name"].tolist()
 
@@ -85,14 +86,14 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
         for _, row in actual_df.iterrows():
             fig.add_trace(
                 go.Scatter(
-                    x=[row["actual_start_date"], row["actual_end_date"]],
+                    x=[row["actual_start_date"], row["actual_end_for_chart"]],
                     y=[row["display_name"], row["display_name"]],
                     mode="lines+markers",
                     line=dict(color="#f28e2c", width=4),
                     marker=dict(color="#f28e2c", size=8),
                     name="実績",
                     showlegend=first_actual,
-                    customdata=[[row["actual_start_date"], row["actual_end_date"]]] * 2,
+                    customdata=[[row["actual_start_date"], row["actual_end_for_chart"]]] * 2,
                     hovertemplate=(
                         "<b>%{y}</b><br>実績開始: %{customdata[0]|%Y-%m-%d}<br>実績終了: "
                         "%{customdata[1]|%Y-%m-%d}<extra></extra>"
