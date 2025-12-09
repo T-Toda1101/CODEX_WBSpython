@@ -10,7 +10,7 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
     chart_df = wbs_df.copy()
     date_columns = ["start_date", "end_date", "actual_start_date", "actual_end_date"]
     for column in date_columns:
-        chart_df[column] = pd.to_datetime(chart_df[column], errors="coerce")
+        chart_df[column] = pd.to_datetime(chart_df[column], errors="coerce").dt.date
 
     has_planned = chart_df["start_date"].notna() & chart_df["end_date"].notna()
     has_actual = chart_df["actual_start_date"].notna() & chart_df["actual_end_date"].notna()
@@ -30,8 +30,8 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
         latest_dates.append(chart_df.loc[has_actual, "actual_end_date"].max())
 
     col1, col2 = st.columns(2)
-    default_start: Optional[date] = min(earliest_dates).date()
-    default_end: Optional[date] = max(latest_dates).date()
+    default_start: Optional[date] = min(earliest_dates)
+    default_end: Optional[date] = max(latest_dates)
     with col1:
         chart_start = st.date_input("グラフ表示開始日", value=default_start)
     with col2:
@@ -42,8 +42,8 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
         return
 
     filtered_df = relevant_rows[
-        (relevant_rows["end_date"].dt.date.fillna(chart_start) >= chart_start)
-        & (relevant_rows["start_date"].dt.date.fillna(chart_end) <= chart_end)
+        (relevant_rows["end_date"].fillna(chart_start) >= chart_start)
+        & (relevant_rows["start_date"].fillna(chart_end) <= chart_end)
     ].copy()
 
     filtered_has_planned = (
@@ -67,7 +67,7 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
                     x=[row["start_date"], row["end_date"]],
                     y=[row["display_name"], row["display_name"]],
                     mode="lines", 
-                    line=dict(color="#4C78A8", width=10),
+                    line=dict(color="#4C78A8", width=50),
                     name="予定",
                     showlegend=first_planned,
                     customdata=[[row["start_date"], row["end_date"]]] * 2,
@@ -100,27 +100,34 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
                 )
             )
             first_actual = False
-
-    today = pd.to_datetime(date.today()).to_pydatetime()
-    chart_start_dt = pd.to_datetime(chart_start).to_pydatetime()
-    chart_end_dt = pd.to_datetime(chart_end).to_pydatetime()
-
+    today = date.today()
+    chart_start_dt = chart_start
+    chart_end_dt = chart_end
     fig.add_vline(
         x=today,
         line_color="#d62728",
-        line_dash="dash",
-        annotation_text="今日",
-        annotation_position="top left",
+        line_dash="dash"
     )
+    fig.add_annotation(
+        x=today,
+        xref="x",
+        y=1,          # グラフの一番上（yref="paper" と組み合わせ）
+        yref="paper",
+        text="今日",
+        showarrow=False,
+        xanchor="left",   # 線の少し右に出したければ "right" など調整可
+    )
+
 
     fig.update_layout(
         barmode="overlay",
-        height=max(120, 40 * len(y_order)),
+        height= 40 * 5,
         xaxis_title="期間",
         yaxis_title="WBS (構造順)",
         xaxis_range=[chart_start_dt, chart_end_dt],
         legend_title="凡例",
     )
+
     fig.update_yaxes(categoryorder="array", categoryarray=y_order)
 
     st.markdown("#### 期間グラフ")
