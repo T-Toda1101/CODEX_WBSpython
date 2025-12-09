@@ -131,6 +131,8 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
     )
 
     fig.update_yaxes(categoryorder="array", categoryarray=y_order)
+    fig.update_xaxes(tickformat="%y/%m")
+
 
     st.markdown("#### 期間グラフ")
     st.plotly_chart(fig, use_container_width=True)
