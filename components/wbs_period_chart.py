@@ -60,22 +60,24 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
 
     if filtered_has_planned.any():
         planned_df = filtered_df[filtered_has_planned].copy()
-        planned_df["duration"] = planned_df["end_date"] - planned_df["start_date"]
-        fig.add_trace(
-            go.Bar(
-                x=planned_df["duration"],
-                base=planned_df["start_date"],
-                y=planned_df["display_name"],
-                orientation="h",
-                name="予定",
-                marker_color="#4C78A8",
-                customdata=planned_df[["end_date"]],
-                hovertemplate=(
-                    "<b>%{y}</b><br>開始予定: %{base|%Y-%m-%d}<br>終了予定: "
-                    "%{customdata[0]|%Y-%m-%d}<extra></extra>"
-                ),
+        first_planned = True
+        for _, row in planned_df.iterrows():
+            fig.add_trace(
+                go.Scatter(
+                    x=[row["start_date"], row["end_date"]],
+                    y=[row["display_name"], row["display_name"]],
+                    mode="lines", 
+                    line=dict(color="#4C78A8", width=10),
+                    name="予定",
+                    showlegend=first_planned,
+                    customdata=[[row["start_date"], row["end_date"]]] * 2,
+                    hovertemplate=(
+                        "<b>%{y}</b><br>開始予定: %{customdata[0]|%Y-%m-%d}<br>終了予定: "
+                        "%{customdata[1]|%Y-%m-%d}<extra></extra>"
+                    ),
+                )
             )
-        )
+            first_planned = False
 
     if filtered_has_actual.any():
         actual_df = filtered_df[filtered_has_actual].copy()
