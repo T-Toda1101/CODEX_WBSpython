@@ -119,9 +119,10 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
     )
 
 
+    chart_height = max(400, len(y_order) * 60)
     fig.update_layout(
         barmode="overlay",
-        height= 40 * 5,
+        height=chart_height,
         xaxis_title="期間",
         yaxis_title="WBS (構造順)",
         xaxis_range=[chart_start_dt, chart_end_dt],
