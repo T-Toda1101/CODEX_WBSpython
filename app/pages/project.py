@@ -35,7 +35,7 @@ def render_project():
     if tab == "WBS & Task List":
         wbs_task_list.render(data, filtered_data, filtered_wbs_map)
     if tab == "Gantt":
-        gantt_view.render(filtered_data, filtered_wbs_map)
+        gantt_view.render(filtered_data, filtered_wbs_map, filter_options)
     if tab == "Kanban":
         kanban_view.render(filtered_data, filtered_wbs_map)
     if tab == "Presentation":
