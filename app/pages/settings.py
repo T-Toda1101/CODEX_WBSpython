@@ -12,3 +12,6 @@ def render_settings():
 
     st.header("ステータス名・色設定")
     st.write("ステータスの設定UIをここに追加予定です。")
+
+if __name__ == "__main__":
+    render_settings()

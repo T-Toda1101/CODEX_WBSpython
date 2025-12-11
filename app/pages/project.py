@@ -27,3 +27,6 @@ def render_project():
         kanban_view.render(data, wbs_map)
     with tab4:
         presentation_view.render(data, wbs_map)
+
+if __name__ == "__main__":
+    render_project()
