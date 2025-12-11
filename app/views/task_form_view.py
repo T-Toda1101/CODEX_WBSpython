@@ -3,8 +3,8 @@ from typing import Dict
 
 import streamlit as st
 
-from .data_store import add_task
-from .models import STATUSES, WBSItem
+from components.data_store import add_task
+from components.models import STATUSES, WBSItem
 
 
 def render_task_form(data: Dict, wbs_map: Dict[str, WBSItem]):

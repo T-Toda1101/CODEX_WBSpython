@@ -3,7 +3,7 @@ from typing import Dict, Optional
 
 import streamlit as st
 
-from .models import STATUSES
+from components.models import STATUSES
 
 
 def render_filters(data: Dict) -> Dict[str, Optional[str]]:

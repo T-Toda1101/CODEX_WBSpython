@@ -1,11 +1,11 @@
 import pandas as pd
 import streamlit as st
 
-from components.task_form import render_task_form
-from components.wbs_creation import wbs_creation_form
-from components.wbs_structure import wbs_structure_view
 from components.kanban import summarize_by_status
 from components.models import WBSItem
+from views.task_form_view import render_task_form
+from views.wbs_creation_view import wbs_creation_form
+from views.wbs_structure_view import wbs_structure_view
 
 
 def render(data, wbs_map):
