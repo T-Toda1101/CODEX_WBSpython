@@ -7,7 +7,8 @@ import streamlit as st
 from components.wbs_structure_table import build_wbs_dataframe
 
 
-def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) -> None:
+def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
+    chart_df = filtered_wbs_df.copy()
     """
     ガントチャート描画用のメイン処理。
 
@@ -19,6 +20,7 @@ def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) ->
     # 1) 日付列の正規化（文字列→date型）
     # --------------------------------------
     chart_df = wbs_df.copy()
+
     date_columns = ["start_date", "end_date", "actual_start_date", "actual_end_date"]
     for column in date_columns:
         # to_datetime で正規化、エラーは NaT として扱う
@@ -68,70 +70,11 @@ def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) ->
     default_start: Optional[date] = min(earliest_dates)
     default_end: Optional[date] = max(latest_dates)
 
-    # --------------------------------------
-    # 5) 表示期間フィルタ（ユーザ選択）適用
-    # --------------------------------------
-    filter_range_start = None
-    filter_range_end = None
+    filtered_df = relevant_rows
+    filtered_has_planned = (
+        filtered_df["start_date"].notna() & filtered_df["end_date"].notna()
+    )
 
-    if filters and filters.get("enabled"):
-        filter_range_start = filters.get("start")
-        filter_range_end = filters.get("end")
-
-    # 最終的に使用する表示期間
-    chart_start = filter_range_start or default_start
-    chart_end = filter_range_end or default_end
-
-    if chart_start > chart_end:
-        st.error("表示期間の開始日は終了日より後にはできません")
-        return
-
-    # --------------------------------------
-    # 6) 各行がチャート範囲に含まれるか判定するための関数
-    #    → 予定・実績どちらもある場合は最小～最大を使う
-    # --------------------------------------
-    def _row_window(row) -> Optional[Tuple[date, date]]:
-        # 候補（予定 or 実績）
-        start_candidates = [row.get("start_date"), row.get("actual_start_date")]
-        start_candidates = [d for d in start_candidates if pd.notna(d)]
-
-        end_candidates = [row.get("end_date"), row.get("actual_end_for_chart")]
-        end_candidates = [d for d in end_candidates if pd.notna(d)]
-
-        if not start_candidates and not end_candidates:
-            return None
-
-        # 予定・実績の両方を考慮して最適な start/end を決定
-        row_start = min(start_candidates) if start_candidates else min(end_candidates)
-        row_end = max(end_candidates) if end_candidates else max(start_candidates)
-
-        return row_start, row_end
-
-    # --------------------------------------
-    # 7) 指定された期間に重なり合う行だけを抽出
-    # --------------------------------------
-    filtered_rows = []
-    for _, row in relevant_rows.iterrows():
-        window = _row_window(row)
-        if not window:
-            continue
-
-        row_start, row_end = window
-
-        # 「どこか一部が表示期間に重なっていれば採用」
-        if row_end >= chart_start and row_start <= chart_end:
-            filtered_rows.append(row)
-
-    if not filtered_rows:
-        st.info("指定された表示期間内に表示できるWBSがありません。期間を見直してください。")
-        return
-
-    filtered_df = pd.DataFrame(filtered_rows)
-
-    # --------------------------------------
-    # 8) 予定・実績を持つデータの抽出
-    # --------------------------------------
-    filtered_has_planned = filtered_df["start_date"].notna() & filtered_df["end_date"].notna()
     filtered_has_actual = filtered_df["actual_start_date"].notna()
 
     # 表示順は WBS の構造順
@@ -239,10 +182,10 @@ def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) ->
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render(data, wbs_map, filters: Optional[Dict] = None):
-    """ガント画面全体のレンダリング"""
+def render(data, wbs_map):
+
     st.write("#### ガントチャート")
 
     # wbs データが存在する場合のみ描画
     if data.get("wbs"):
-        render_period_chart(build_wbs_dataframe(data.get("wbs", [])), filters)
+        render_period_chart(build_wbs_dataframe(data.get("wbs", [])))
