@@ -3,8 +3,8 @@ from typing import Dict
 
 import streamlit as st
 
-from .data_store import add_wbs_item
-from .models import WBSItem
+from components.data_store import add_wbs_item
+from components.models import WBSItem
 
 
 def wbs_creation_form(data: Dict, wbs_map: Dict[str, WBSItem]):

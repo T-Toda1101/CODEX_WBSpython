@@ -67,7 +67,7 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
                 go.Scatter(
                     x=[row["start_date"], row["end_date"]],
                     y=[row["display_name"], row["display_name"]],
-                    mode="lines", 
+                    mode="lines",
                     line=dict(color="#4C78A8", width=50),
                     name="予定",
                     showlegend=first_planned,

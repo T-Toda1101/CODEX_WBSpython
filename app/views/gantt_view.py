@@ -1,8 +1,9 @@
 import streamlit as st
 
 from components.wbs_structure_table import build_wbs_dataframe
-from components.wbs_period_chart import render_period_chart
+from views.wbs_period_chart_view import render_period_chart
 from components.models import WBSItem
+
 
 def render(data, wbs_map):
     st.subheader("Gantt View")
