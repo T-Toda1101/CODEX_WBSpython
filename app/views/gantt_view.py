@@ -1,8 +1,3 @@
-import streamlit as st
-
-from components.wbs_structure_table import build_wbs_dataframe
-from components.models import WBSItem
-
 from datetime import date
 from typing import Optional
 
@@ -10,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-
+from components.wbs_structure_table import build_wbs_dataframe
 
 
 def render_period_chart(wbs_df: pd.DataFrame) -> None:
