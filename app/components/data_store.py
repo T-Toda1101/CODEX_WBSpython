@@ -7,8 +7,14 @@ import streamlit as st
 
 from .models import STATUSES, WBSItem
 
-DATA_DIR = Path("data")
-DATA_FILE = DATA_DIR / "wbs_tasks.json"
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_FILE = DATA_DIR / "wbs_data.json"
+
+
+def ensure_data_file_exists() -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if not DATA_FILE.exists():
+        DATA_FILE.write_text("{\n  \"wbs\": [],\n  \"tasks\": []\n}\n", encoding="utf-8")
 
 
 def load_data() -> Dict[str, List[Dict]]:
@@ -101,3 +107,7 @@ def delete_task(data: Dict[str, List[Dict]], task_id: str):
     if len(data["tasks"]) < before:
         save_data(data)
         st.toast("タスクを削除しました", icon="⚠️")
+
+
+def status_summary(tasks: List[Dict]):
+    return {status: len([t for t in tasks if t.get("status") == status]) for status in STATUSES}

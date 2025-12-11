@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-STATUSES = ["Backlog", "In Progress", "Blocked", "Done"]
+STATUSES = ["TODO", "DOING", "DONE", "IGNORE"]
 
 
 @dataclass
