@@ -11,11 +11,11 @@ from components.data_store import save_data
 from components.wbs_structure_table import build_wbs_dataframe, normalize_date_value
 
 def render_structure_and_period_table(
-    data: Dict[str, List[Dict]]
+    data: Dict[str, List[Dict]],
+    wbs_items: List[Dict],
 ) -> Optional[pd.DataFrame]:
     """Display the WBS structure table and persist date updates."""
 
-    wbs_items = data.get("wbs", [])
     if not wbs_items:
         st.info("まだWBSがありません。下のフォームから追加してください。")
         return None
@@ -69,23 +69,23 @@ def render_structure_and_period_table(
     return edited_df
 
 
-def render(data, wbs_map):
+def render(data, filtered_data, filtered_wbs_map):
 
-    render_structure_and_period_table(data)
+    render_structure_and_period_table(data, filtered_data.get("wbs", []))
 
     st.markdown("### タスク一覧")
-    if not data.get("tasks"):
+    if not filtered_data.get("tasks"):
         st.info("タスクがまだありません。右のフォームから追加してください。")
         return
 
-    counts = summarize_tasks_by_status(data["tasks"])
+    counts = summarize_tasks_by_status(filtered_data["tasks"])
     st.write(" | ".join([f"{status}: {counts.get(status, 0)}件" for status in counts]))
 
     task_rows = []
-    for task in data.get("tasks", []):
+    for task in filtered_data.get("tasks", []):
         task_rows.append(
             {
-                "WBS": wbs_map.get(task.get("wbs_id"), WBSItem("-", "(未割当)", None, None, None, None, None)).name
+                "WBS": filtered_wbs_map.get(task.get("wbs_id"), WBSItem("-", "(未割当)", None, None, None, None, None)).name
                 if task.get("wbs_id")
                 else "(未割当)",
                 "タイトル": task.get("title"),
