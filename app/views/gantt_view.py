@@ -1,6 +1,5 @@
 from datetime import date
-from typing import Dict, Optional
-
+from typing import Dict, Optional, Tuple
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -9,28 +8,55 @@ from components.wbs_structure_table import build_wbs_dataframe
 
 
 def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) -> None:
+    """
+    ガントチャート描画用のメイン処理。
+
+    WBS の予定日（start_date/end_date）および実績日（actual_start_date/actual_end_date）を元に
+    表示範囲に含まれるデータだけを抽出し、Plotly で視覚化する。
+    """
+
+    # --------------------------------------
+    # 1) 日付列の正規化（文字列→date型）
+    # --------------------------------------
     chart_df = wbs_df.copy()
     date_columns = ["start_date", "end_date", "actual_start_date", "actual_end_date"]
     for column in date_columns:
+        # to_datetime で正規化、エラーは NaT として扱う
         chart_df[column] = pd.to_datetime(chart_df[column], errors="coerce").dt.date
 
+    # --------------------------------------
+    # 2) 実績終了日が未入力の場合、"今日" を実績終了とみなして可視化
+    # --------------------------------------
     chart_df["actual_end_for_chart"] = chart_df["actual_end_date"]
     missing_actual_end = chart_df["actual_start_date"].notna() & chart_df["actual_end_date"].isna()
     chart_df.loc[missing_actual_end, "actual_end_for_chart"] = date.today()
 
+    # --------------------------------------
+    # 3) 予定/実績の有無チェック
+    # --------------------------------------
     has_planned = chart_df["start_date"].notna() & chart_df["end_date"].notna()
     has_actual = chart_df["actual_start_date"].notna()
 
+    # どちらも無い場合は描画できない
     if not (has_planned.any() or has_actual.any()):
         st.info("開始・終了予定日または実績日が設定されたWBSがありません。日付を入力してください。")
         return
 
+    # 可視化対象（予定 or 実績のどちらかをもつ行）
     relevant_rows = chart_df[has_planned | has_actual].copy()
+
+    # --------------------------------------
+    # 4) ガントチャート全体のデフォルト期間を決定
+    # --------------------------------------
     earliest_dates = []
     latest_dates = []
+
+    # 予定日から最も早い/遅い日
     if has_planned.any():
         earliest_dates.append(chart_df.loc[has_planned, "start_date"].min())
         latest_dates.append(chart_df.loc[has_planned, "end_date"].max())
+
+    # 実績日から最も早い/遅い日
     if has_actual.any():
         earliest_dates.append(chart_df.loc[has_actual, "actual_start_date"].min())
         latest_dates.append(chart_df.loc[has_actual, "actual_end_for_chart"].max())
@@ -42,12 +68,17 @@ def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) ->
     default_start: Optional[date] = min(earliest_dates)
     default_end: Optional[date] = max(latest_dates)
 
+    # --------------------------------------
+    # 5) 表示期間フィルタ（ユーザ選択）適用
+    # --------------------------------------
     filter_range_start = None
     filter_range_end = None
+
     if filters and filters.get("enabled"):
         filter_range_start = filters.get("start")
         filter_range_end = filters.get("end")
 
+    # 最終的に使用する表示期間
     chart_start = filter_range_start or default_start
     chart_end = filter_range_end or default_end
 
@@ -55,25 +86,39 @@ def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) ->
         st.error("表示期間の開始日は終了日より後にはできません")
         return
 
-    def _row_window(row) -> Optional[tuple[date, date]]:
+    # --------------------------------------
+    # 6) 各行がチャート範囲に含まれるか判定するための関数
+    #    → 予定・実績どちらもある場合は最小～最大を使う
+    # --------------------------------------
+    def _row_window(row) -> Optional[Tuple[date, date]]:
+        # 候補（予定 or 実績）
         start_candidates = [row.get("start_date"), row.get("actual_start_date")]
         start_candidates = [d for d in start_candidates if pd.notna(d)]
+
         end_candidates = [row.get("end_date"), row.get("actual_end_for_chart")]
         end_candidates = [d for d in end_candidates if pd.notna(d)]
 
         if not start_candidates and not end_candidates:
             return None
 
+        # 予定・実績の両方を考慮して最適な start/end を決定
         row_start = min(start_candidates) if start_candidates else min(end_candidates)
         row_end = max(end_candidates) if end_candidates else max(start_candidates)
+
         return row_start, row_end
 
+    # --------------------------------------
+    # 7) 指定された期間に重なり合う行だけを抽出
+    # --------------------------------------
     filtered_rows = []
     for _, row in relevant_rows.iterrows():
         window = _row_window(row)
         if not window:
             continue
+
         row_start, row_end = window
+
+        # 「どこか一部が表示期間に重なっていれば採用」
         if row_end >= chart_start and row_start <= chart_end:
             filtered_rows.append(row)
 
@@ -82,18 +127,27 @@ def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) ->
         return
 
     filtered_df = pd.DataFrame(filtered_rows)
-    filtered_has_planned = (
-        filtered_df["start_date"].notna() & filtered_df["end_date"].notna()
-    )
+
+    # --------------------------------------
+    # 8) 予定・実績を持つデータの抽出
+    # --------------------------------------
+    filtered_has_planned = filtered_df["start_date"].notna() & filtered_df["end_date"].notna()
     filtered_has_actual = filtered_df["actual_start_date"].notna()
 
+    # 表示順は WBS の構造順
     y_order = filtered_df["display_name"].tolist()
 
     fig = go.Figure()
 
+    # --------------------------------------
+    # 9) 予定バーの描画
+    # --------------------------------------
     if filtered_has_planned.any():
         planned_df = filtered_df[filtered_has_planned].copy()
+
+        # 凡例が重複するのを避けるためフラグを使う
         first_planned = True
+
         for _, row in planned_df.iterrows():
             fig.add_trace(
                 go.Scatter(
@@ -105,16 +159,22 @@ def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) ->
                     showlegend=first_planned,
                     customdata=[[row["start_date"], row["end_date"]]] * 2,
                     hovertemplate=(
-                        "<b>%{y}</b><br>開始予定: %{customdata[0]|%Y-%m-%d}<br>終了予定: "
-                        "%{customdata[1]|%Y-%m-%d}<extra></extra>"
+                        "<b>%{y}</b><br>"
+                        "開始予定: %{customdata[0]|%Y-%m-%d}<br>"
+                        "終了予定: %{customdata[1]|%Y-%m-%d}"
+                        "<extra></extra>"
                     ),
                 )
             )
             first_planned = False
 
+    # --------------------------------------
+    # 10) 実績バーの描画
+    # --------------------------------------
     if filtered_has_actual.any():
         actual_df = filtered_df[filtered_has_actual].copy()
         first_actual = True
+
         for _, row in actual_df.iterrows():
             fig.add_trace(
                 go.Scatter(
@@ -127,50 +187,62 @@ def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) ->
                     showlegend=first_actual,
                     customdata=[[row["actual_start_date"], row["actual_end_for_chart"]]] * 2,
                     hovertemplate=(
-                        "<b>%{y}</b><br>実績開始: %{customdata[0]|%Y-%m-%d}<br>実績終了: "
-                        "%{customdata[1]|%Y-%m-%d}<extra></extra>"
+                        "<b>%{y}</b><br>"
+                        "実績開始: %{customdata[0]|%Y-%m-%d}<br>"
+                        "実績終了: %{customdata[1]|%Y-%m-%d}"
+                        "<extra></extra>"
                     ),
                 )
             )
             first_actual = False
+
+    # --------------------------------------
+    # 11) 今日の縦線（基準線）
+    # --------------------------------------
     today = date.today()
-    chart_start_dt = chart_start
-    chart_end_dt = chart_end
     fig.add_vline(
         x=today,
         line_color="#d62728",
-        line_dash="dash"
+        line_dash="dash"  # 破線
     )
     fig.add_annotation(
         x=today,
         xref="x",
-        y=1,          # グラフの一番上（yref="paper" と組み合わせ）
+        y=1,
         yref="paper",
         text="今日",
         showarrow=False,
-        xanchor="left",   # 線の少し右に出したければ "right" など調整可
+        xanchor="left"
     )
 
-
+    # --------------------------------------
+    # 12) レイアウト調整（高さ・軸フォーマット等）
+    # --------------------------------------
     chart_height = max(400, len(y_order) * 60)
+
     fig.update_layout(
         barmode="overlay",
         height=chart_height,
         xaxis_title="期間",
         yaxis_title="WBS (構造順)",
-        xaxis_range=[chart_start_dt, chart_end_dt],
+        xaxis_range=[chart_start, chart_end],
         legend_title="凡例",
     )
 
     fig.update_yaxes(categoryorder="array", categoryarray=y_order)
     fig.update_xaxes(tickformat="%y/%m")
 
-
+    # --------------------------------------
+    # 13) Streamlit に表示
+    # --------------------------------------
     st.markdown("#### 期間グラフ")
     st.plotly_chart(fig, use_container_width=True)
 
 
 def render(data, wbs_map, filters: Optional[Dict] = None):
+    """ガント画面全体のレンダリング"""
     st.write("#### ガントチャート")
+
+    # wbs データが存在する場合のみ描画
     if data.get("wbs"):
         render_period_chart(build_wbs_dataframe(data.get("wbs", [])), filters)
