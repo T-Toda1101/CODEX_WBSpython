@@ -1,7 +1,7 @@
 import streamlit as st
 
-from app.pages.project import render_project
-from app.pages.settings import render_settings
+from pages.project import render_project
+from pages.settings import render_settings
 
 st.set_page_config(page_title="WBS & Kanban", layout="wide")
 

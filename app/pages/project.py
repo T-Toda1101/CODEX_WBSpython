@@ -1,8 +1,8 @@
 import streamlit as st
 
-from app.components.data_store import build_wbs_map, ensure_data_file_exists, load_data
-from app.components.filters import render_filters
-from app.views import gantt_view, kanban_view, presentation_view, wbs_task_list
+from components.data_store import build_wbs_map, ensure_data_file_exists, load_data
+from components.filters import render_filters
+from views import gantt_view, kanban_view, presentation_view, wbs_task_list
 
 
 def render_project():

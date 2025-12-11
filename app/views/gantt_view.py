@@ -1,11 +1,10 @@
 import streamlit as st
 
-from app.components.wbs_structure_table import build_wbs_dataframe
-from app.components.wbs_period_chart import render_period_chart
-from app.components.models import WBSItem
+from components.wbs_structure_table import build_wbs_dataframe
+from components.wbs_period_chart import render_period_chart
+from components.models import WBSItem
 
-
-def render(data, wbs_map: dict[str, WBSItem]):
+def render(data, wbs_map):
     st.subheader("Gantt View")
 
     col_left, col_right = st.columns([1, 2])

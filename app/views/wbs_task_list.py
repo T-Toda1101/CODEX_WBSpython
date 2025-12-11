@@ -1,14 +1,14 @@
 import pandas as pd
 import streamlit as st
 
-from app.components.task_form import render_task_form
-from app.components.wbs_creation import wbs_creation_form
-from app.components.wbs_structure import wbs_structure_view
-from app.components.kanban import summarize_by_status
-from app.components.models import WBSItem
+from components.task_form import render_task_form
+from components.wbs_creation import wbs_creation_form
+from components.wbs_structure import wbs_structure_view
+from components.kanban import summarize_by_status
+from components.models import WBSItem
 
 
-def render(data, wbs_map: dict[str, WBSItem]):
+def render(data, wbs_map):
     st.subheader("WBS & Task List")
 
     with st.sidebar:
