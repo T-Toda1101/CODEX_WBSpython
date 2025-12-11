@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import Dict, Optional
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -8,7 +8,7 @@ import streamlit as st
 from components.wbs_structure_table import build_wbs_dataframe
 
 
-def render_period_chart(wbs_df: pd.DataFrame) -> None:
+def render_period_chart(wbs_df: pd.DataFrame, filters: Optional[Dict] = None) -> None:
     chart_df = wbs_df.copy()
     date_columns = ["start_date", "end_date", "actual_start_date", "actual_end_date"]
     for column in date_columns:
@@ -35,23 +35,53 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
         earliest_dates.append(chart_df.loc[has_actual, "actual_start_date"].min())
         latest_dates.append(chart_df.loc[has_actual, "actual_end_for_chart"].max())
 
-    col1, col2 = st.columns(2)
+    if not earliest_dates or not latest_dates:
+        st.info("ガントチャートを描画するための日付情報が不足しています。")
+        return
+
     default_start: Optional[date] = min(earliest_dates)
     default_end: Optional[date] = max(latest_dates)
-    with col1:
-        chart_start = st.date_input("グラフ表示開始日", value=default_start)
-    with col2:
-        chart_end = st.date_input("グラフ表示終了日", value=default_end)
+
+    filter_range_start = None
+    filter_range_end = None
+    if filters and filters.get("enabled"):
+        filter_range_start = filters.get("start")
+        filter_range_end = filters.get("end")
+
+    chart_start = filter_range_start or default_start
+    chart_end = filter_range_end or default_end
 
     if chart_start > chart_end:
         st.error("表示期間の開始日は終了日より後にはできません")
         return
 
-    filtered_df = relevant_rows[
-        (relevant_rows["end_date"].fillna(chart_start) >= chart_start)
-        & (relevant_rows["start_date"].fillna(chart_end) <= chart_end)
-    ].copy()
+    def _row_window(row) -> Optional[tuple[date, date]]:
+        start_candidates = [row.get("start_date"), row.get("actual_start_date")]
+        start_candidates = [d for d in start_candidates if pd.notna(d)]
+        end_candidates = [row.get("end_date"), row.get("actual_end_for_chart")]
+        end_candidates = [d for d in end_candidates if pd.notna(d)]
 
+        if not start_candidates and not end_candidates:
+            return None
+
+        row_start = min(start_candidates) if start_candidates else min(end_candidates)
+        row_end = max(end_candidates) if end_candidates else max(start_candidates)
+        return row_start, row_end
+
+    filtered_rows = []
+    for _, row in relevant_rows.iterrows():
+        window = _row_window(row)
+        if not window:
+            continue
+        row_start, row_end = window
+        if row_end >= chart_start and row_start <= chart_end:
+            filtered_rows.append(row)
+
+    if not filtered_rows:
+        st.info("指定された表示期間内に表示できるWBSがありません。期間を見直してください。")
+        return
+
+    filtered_df = pd.DataFrame(filtered_rows)
     filtered_has_planned = (
         filtered_df["start_date"].notna() & filtered_df["end_date"].notna()
     )
@@ -140,7 +170,7 @@ def render_period_chart(wbs_df: pd.DataFrame) -> None:
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render(data, wbs_map):
+def render(data, wbs_map, filters: Optional[Dict] = None):
     st.write("#### ガントチャート")
     if data.get("wbs"):
-        render_period_chart(build_wbs_dataframe(data.get("wbs", [])))
+        render_period_chart(build_wbs_dataframe(data.get("wbs", [])), filters)
