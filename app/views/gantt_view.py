@@ -1,7 +1,6 @@
 import streamlit as st
 
 from components.wbs_structure_table import build_wbs_dataframe
-# from views.wbs_period_chart_view import render_period_chart
 from components.models import WBSItem
 
 from datetime import date

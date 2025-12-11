@@ -15,7 +15,12 @@ def render_project():
     data = load_data()
     wbs_map = build_wbs_map(data.get("wbs", []))
 
-    render_filters(data)
+    filter = render_filters(data)
+
+    with st.sidebar:    
+        wbs_creation_form(data, wbs_map)
+        render_task_form(data, wbs_map)
+
 
     tab = st.radio(
         "表示するビューを選択",
@@ -26,9 +31,6 @@ def render_project():
 
     if tab == "WBS & Task List":
         wbs_task_list.render(data, wbs_map)
-        with st.sidebar:    
-            wbs_creation_form(data, wbs_map)
-            render_task_form(data, wbs_map)
     if tab == "Gantt":
          gantt_view.render(data, wbs_map)
     if tab == "Kanban":
