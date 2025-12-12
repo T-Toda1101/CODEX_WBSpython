@@ -19,7 +19,6 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
     # --------------------------------------
     # 1) 日付列の正規化（文字列→date型）
     # --------------------------------------
-    chart_df = wbs_df.copy()
 
     date_columns = ["start_date", "end_date", "actual_start_date", "actual_end_date"]
     for column in date_columns:
@@ -143,6 +142,8 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
     # 11) 今日の縦線（基準線）
     # --------------------------------------
     today = date.today()
+    chart_start_dt = default_start
+    chart_end_dt = default_end
     fig.add_vline(
         x=today,
         line_color="#d62728",
@@ -168,7 +169,7 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
         height=chart_height,
         xaxis_title="期間",
         yaxis_title="WBS (構造順)",
-        xaxis_range=[chart_start, chart_end],
+        xaxis_range=[chart_start_dt, chart_end_dt],
         legend_title="凡例",
     )
 
