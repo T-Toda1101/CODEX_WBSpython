@@ -1,14 +1,16 @@
+from typing import Dict, List, Optional
+
 import pandas as pd
 import streamlit as st
 
 from components.kanban import summarize_tasks_by_status
 from components.models import WBSItem
-
-from typing import Dict, List, Optional
-
-
-from components.data_store import save_data
-from components.wbs_structure_table import build_wbs_dataframe, normalize_date_value
+from components.data_store import delete_wbs_items, save_data
+from components.wbs_structure_table import (
+    build_wbs_dataframe,
+    collect_descendants,
+    normalize_date_value,
+)
 
 def render_structure_and_period_table(
     data: Dict[str, List[Dict]],
@@ -25,26 +27,53 @@ def render_structure_and_period_table(
     st.markdown("### WBS構造と期間")
 
     with st.expander("構造順テーブル", expanded=True):
+        parent_options = [None] + [item.get("id") for item in data.get("wbs", [])]
+        parent_label_map = {item.get("id"): item.get("name") for item in data.get("wbs", [])}
+
         edited_df = st.data_editor(
             wbs_df,
             hide_index=True,
             disabled=["id", "display_name"],
             column_config={
                 "display_name": st.column_config.Column("WBS名 "),
+                "parent": st.column_config.SelectboxColumn(
+                    "親WBS",
+                    options=parent_options,
+                    format_func=lambda x: "(トップレベル)" if x is None else parent_label_map.get(x, "-"),
+                ),
                 "start_date": st.column_config.DateColumn("開始予定日"),
                 "end_date": st.column_config.DateColumn("終了予定日"),
                 "actual_start_date": st.column_config.DateColumn("実績開始日"),
                 "actual_end_date": st.column_config.DateColumn("実績終了日"),
+                "delete": st.column_config.CheckboxColumn("削除", default=False),
             },
             key="wbs_structure_editor",
         )
 
-        if st.button("予定・実績日を保存", key="save_wbs_dates"):
+        if st.button("変更を保存", key="save_wbs_dates"):
             updates = 0
+            parent_updates = 0
+            errors = []
+            id_to_item = {item.get("id"): item for item in data.get("wbs", [])}
+            descendants_map = {
+                item.get("id"): collect_descendants(data.get("wbs", []), item.get("id"))
+                for item in data.get("wbs", [])
+            }
+
+            delete_targets = set(
+                row.get("id")
+                for _, row in edited_df.iterrows()
+                if bool(row.get("delete"))
+            )
+
+            for target_id in list(delete_targets):
+                delete_targets.update(descendants_map.get(target_id, set()))
+
             for _, row in edited_df.iterrows():
-                target = next((i for i in data["wbs"] if i["id"] == row["id"]), None)
-                if not target:
+                target = id_to_item.get(row.get("id"))
+                if not target or target.get("id") in delete_targets:
                     continue
+
                 new_start = normalize_date_value(row.get("start_date"))
                 new_end = normalize_date_value(row.get("end_date"))
                 new_actual_start = normalize_date_value(row.get("actual_start_date"))
@@ -60,9 +89,37 @@ def render_structure_and_period_table(
                     target["actual_start_date"] = new_actual_start
                     target["actual_end_date"] = new_actual_end
                     updates += 1
-            if updates:
-                save_data(data)
-                st.success(f"{updates}件のWBSの日付を更新しました")
+
+                new_parent = row.get("parent") if not pd.isna(row.get("parent")) else None
+                if new_parent in delete_targets:
+                    errors.append(f"{target.get('name')} の親が削除対象になっています")
+                    continue
+                if new_parent == target.get("id") or new_parent in descendants_map.get(target.get("id"), set()):
+                    errors.append(f"{target.get('name')} は自身または子孫を親にできません")
+                    continue
+                if target.get("parent") != new_parent:
+                    target["parent"] = new_parent
+                    parent_updates += 1
+
+            removed = delete_wbs_items(data, delete_targets) if delete_targets else 0
+
+            if errors:
+                st.error("\n".join(errors))
+
+            if updates or parent_updates or removed:
+                if not removed:
+                    save_data(data)
+                st.success(
+                    "、".join(
+                        part
+                        for part in [
+                            f"{updates}件の日付更新" if updates else "",
+                            f"{parent_updates}件の階層更新" if parent_updates else "",
+                            f"{removed}件のWBS削除" if removed else "",
+                        ]
+                        if part
+                    )
+                )
             else:
                 st.info("変更はありませんでした")
 

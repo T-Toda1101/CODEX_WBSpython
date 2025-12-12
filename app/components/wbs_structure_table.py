@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import pandas as pd
 
@@ -24,6 +24,21 @@ def flatten_wbs_with_levels(wbs_items: List[Dict]) -> List[Dict]:
 
     walk(None, 0)
     return ordered
+
+
+def collect_descendants(wbs_items: List[Dict], root_id: str) -> Set[str]:
+    descendants: Set[str] = set()
+
+    def dfs(parent_id: str):
+        for item in wbs_items:
+            if item.get("parent") == parent_id:
+                child_id = item.get("id")
+                if child_id:
+                    descendants.add(child_id)
+                    dfs(child_id)
+
+    dfs(root_id)
+    return descendants
 
 
 def normalize_date_value(value: Optional[object]) -> Optional[str]:
@@ -57,10 +72,12 @@ def build_wbs_dataframe(wbs_items: List[Dict]) -> pd.DataFrame:
             {
                 "id": item["id"],
                 "display_name": "　" * level + item["name"],
+                "parent": item.get("parent"),
                 "start_date": parse_iso_date(item.get("start_date")),
                 "end_date": parse_iso_date(item.get("end_date")),
                 "actual_start_date": parse_iso_date(item.get("actual_start_date")),
                 "actual_end_date": parse_iso_date(item.get("actual_end_date")),
+                "delete": False,
             }
         )
 
