@@ -33,19 +33,18 @@ def render_structure_and_period_table(
             wbs_id = item.get("id")
             if not wbs_id:
                 continue
-            parent_display_map[wbs_id] = f"{item.get('name')} ({wbs_id})"
+            parent_display_map[wbs_id] = item.get('name')
 
         wbs_df["parent_selection"] = wbs_df["parent"].apply(
             lambda value: parent_display_map.get(value, "-")
         )
-        parent_options = list(parent_display_map.values())
+        parent_options = [v for v in parent_display_map.values() if v]
         parent_option_to_id = {v: k for k, v in parent_display_map.items()}
         wbs_df = wbs_df.drop(columns=["parent"])
 
         edited_df = st.data_editor(
             wbs_df,
             hide_index=True,
-            disabled=["id", "display_name"],
             column_config={
                 "display_name": st.column_config.Column("WBS名 "),
                 "parent_selection": st.column_config.SelectboxColumn(
