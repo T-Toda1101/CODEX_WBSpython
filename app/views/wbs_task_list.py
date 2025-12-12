@@ -22,12 +22,11 @@ def render_structure_and_period_table(
         st.info("まだWBSがありません。下のフォームから追加してください。")
         return None
 
-    wbs_df = build_wbs_dataframe(wbs_items)
+    wbs_df = build_wbs_dataframe(wbs_items).set_index("id")
 
     st.markdown("### WBS構造と期間")
 
     with st.expander("構造順テーブル", expanded=True):
-        parent_label_map = {item.get("id"): item.get("name") for item in data.get("wbs", [])}
         parent_display_map = {None: "(トップレベル)"}
         for item in data.get("wbs", []):
             wbs_id = item.get("id")
@@ -36,7 +35,7 @@ def render_structure_and_period_table(
             parent_display_map[wbs_id] = item.get('name')
 
         wbs_df["parent_selection"] = wbs_df["parent"].apply(
-            lambda value: parent_display_map.get(value, "-")
+            lambda value: parent_display_map.get(value, parent_display_map[None])
         )
         parent_options = [v for v in parent_display_map.values() if v]
         parent_option_to_id = {v: k for k, v in parent_display_map.items()}
@@ -50,6 +49,7 @@ def render_structure_and_period_table(
                 "parent_selection": st.column_config.SelectboxColumn(
                     "親WBS",
                     options=parent_options,
+                    required=True,
                 ),
                 "start_date": st.column_config.DateColumn("開始予定日"),
                 "end_date": st.column_config.DateColumn("終了予定日"),
@@ -71,16 +71,14 @@ def render_structure_and_period_table(
             }
 
             delete_targets = set(
-                row.get("id")
-                for _, row in edited_df.iterrows()
-                if bool(row.get("delete"))
+                index for index, row in edited_df.iterrows() if bool(row.get("delete"))
             )
 
             for target_id in list(delete_targets):
                 delete_targets.update(descendants_map.get(target_id, set()))
 
-            for _, row in edited_df.iterrows():
-                target = id_to_item.get(row.get("id"))
+            for index, row in edited_df.iterrows():
+                target = id_to_item.get(index)
                 if not target or target.get("id") in delete_targets:
                     continue
 
