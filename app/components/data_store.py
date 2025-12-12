@@ -1,7 +1,7 @@
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import streamlit as st
 
@@ -107,6 +107,24 @@ def delete_task(data: Dict[str, List[Dict]], task_id: str):
     if len(data["tasks"]) < before:
         save_data(data)
         st.toast("タスクを削除しました", icon="⚠️")
+
+
+def delete_wbs_items(data: Dict[str, List[Dict]], wbs_ids: Set[str]) -> int:
+    """削除対象のWBSと紐づくタスクのWBS紐付けを外す."""
+
+    before = len(data["wbs"])
+    data["wbs"] = [item for item in data["wbs"] if item.get("id") not in wbs_ids]
+
+    for task in data.get("tasks", []):
+        if task.get("wbs_id") in wbs_ids:
+            task["wbs_id"] = None
+
+    removed = before - len(data["wbs"])
+    if removed:
+        save_data(data)
+        st.toast(f"{removed}件のWBSを削除しました", icon="⚠️")
+
+    return removed
 
 
 def status_summary(tasks: List[Dict]):
