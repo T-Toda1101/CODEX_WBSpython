@@ -27,8 +27,20 @@ def render_structure_and_period_table(
     st.markdown("### WBS構造と期間")
 
     with st.expander("構造順テーブル", expanded=True):
-        parent_options = [None] + [item.get("id") for item in data.get("wbs", [])]
         parent_label_map = {item.get("id"): item.get("name") for item in data.get("wbs", [])}
+        parent_display_map = {None: "(トップレベル)"}
+        for item in data.get("wbs", []):
+            wbs_id = item.get("id")
+            if not wbs_id:
+                continue
+            parent_display_map[wbs_id] = f"{item.get('name')} ({wbs_id})"
+
+        wbs_df["parent_selection"] = wbs_df["parent"].apply(
+            lambda value: parent_display_map.get(value, "-")
+        )
+        parent_options = list(parent_display_map.values())
+        parent_option_to_id = {v: k for k, v in parent_display_map.items()}
+        wbs_df = wbs_df.drop(columns=["parent"])
 
         edited_df = st.data_editor(
             wbs_df,
@@ -36,10 +48,9 @@ def render_structure_and_period_table(
             disabled=["id", "display_name"],
             column_config={
                 "display_name": st.column_config.Column("WBS名 "),
-                "parent": st.column_config.SelectboxColumn(
+                "parent_selection": st.column_config.SelectboxColumn(
                     "親WBS",
                     options=parent_options,
-                    format_func=lambda x: "(トップレベル)" if x is None else parent_label_map.get(x, "-"),
                 ),
                 "start_date": st.column_config.DateColumn("開始予定日"),
                 "end_date": st.column_config.DateColumn("終了予定日"),
@@ -90,7 +101,12 @@ def render_structure_and_period_table(
                     target["actual_end_date"] = new_actual_end
                     updates += 1
 
-                new_parent = row.get("parent") if not pd.isna(row.get("parent")) else None
+                parent_selection = row.get("parent_selection")
+                new_parent = (
+                    parent_option_to_id.get(parent_selection)
+                    if not pd.isna(parent_selection)
+                    else None
+                )
                 if new_parent in delete_targets:
                     errors.append(f"{target.get('name')} の親が削除対象になっています")
                     continue
