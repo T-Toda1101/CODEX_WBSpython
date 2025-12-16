@@ -1,7 +1,8 @@
 from datetime import date
-from typing import Dict, Optional, Tuple
+from typing import Optional
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 from components.wbs_structure_table import build_wbs_dataframe
@@ -76,10 +77,30 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
 
     filtered_has_actual = filtered_df["actual_start_date"].notna()
 
-    # 表示順は WBS の構造順
-    y_order = filtered_df["display_name"].tolist()
+    # 表示順は WBS の構造順（インデント済みのラベルを使用）
+    display_labels = filtered_df["display_name"]
+    y_order = display_labels.tolist()
 
-    fig = go.Figure()
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        shared_yaxes=True,
+        column_widths=[0.3, 0.7],
+        horizontal_spacing=0.02,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=[0] * len(filtered_df),
+            y=display_labels,
+            text=display_labels,
+            mode="text",
+            textposition="middle right",
+            showlegend=False,
+        ),
+        row=1,
+        col=1,
+    )
 
     # --------------------------------------
     # 9) 予定バーの描画
@@ -106,7 +127,9 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
                         "終了予定: %{customdata[1]|%Y-%m-%d}"
                         "<extra></extra>"
                     ),
-                )
+                ),
+                row=1,
+                col=2,
             )
             first_planned = False
 
@@ -134,7 +157,9 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
                         "実績終了: %{customdata[1]|%Y-%m-%d}"
                         "<extra></extra>"
                     ),
-                )
+                ),
+                row=1,
+                col=2,
             )
             first_actual = False
 
@@ -147,11 +172,13 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
     fig.add_vline(
         x=today,
         line_color="#d62728",
-        line_dash="dash"  # 破線
+        line_dash="dash",  # 破線
+        row=1,
+        col=2,
     )
     fig.add_annotation(
         x=today,
-        xref="x",
+        xref="x2",
         y=1,
         yref="paper",
         text="今日",
@@ -167,13 +194,37 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
     fig.update_layout(
         barmode="overlay",
         height=chart_height,
-        xaxis_title="期間",
-        xaxis_range=[chart_start_dt, chart_end_dt],
         legend_title="凡例",
+        showlegend=True,
     )
 
-    fig.update_yaxes(categoryorder="array", categoryarray=y_order,autorange="reversed")
-    fig.update_xaxes(tickformat="%y/%m")
+    fig.update_yaxes(
+        categoryorder="array",
+        categoryarray=y_order,
+        autorange="reversed",
+        showticklabels=False,
+        row=1,
+        col=2,
+    )
+
+    fig.update_yaxes(
+        categoryorder="array",
+        categoryarray=y_order,
+        autorange="reversed",
+        showticklabels=False,
+        row=1,
+        col=1,
+    )
+
+    fig.update_xaxes(visible=False, row=1, col=1)
+
+    fig.update_xaxes(
+        tickformat="%y/%m",
+        range=[chart_start_dt, chart_end_dt],
+        title_text="期間",
+        row=1,
+        col=2,
+    )
 
     # --------------------------------------
     # 13) Streamlit に表示
