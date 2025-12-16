@@ -18,8 +18,6 @@ def render_project():
         st.session_state["data"] = load_data()
 
     data = st.session_state["data"]
-    wbs_map = build_wbs_map(data.get("wbs", []))
-
     filter_options = render_filters(data)
     filtered_data = apply_filters(data, filter_options)
     st.session_state["filtered_data"] = filtered_data
@@ -27,7 +25,7 @@ def render_project():
 
     with st.sidebar:    
         wbs_creation_form(data)
-        render_task_form(data, wbs_map)
+        render_task_form(data)
 
 
     tab = st.radio(

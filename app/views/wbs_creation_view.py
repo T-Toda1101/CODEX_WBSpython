@@ -4,21 +4,24 @@ from typing import Dict
 import streamlit as st
 
 from components.data_store import add_wbs_item
-from components.wbs_structure_table import build_ordered_wbs_label_map
+from components.wbs_structure_table import build_wbs_selection_list
 
 
 def wbs_creation_form(data: Dict):
     st.markdown("### WBSを追加")
 
-    ordered_labels = build_ordered_wbs_label_map(data.get("wbs", []))
-    parent_label_map = {None: "(トップレベル)", **ordered_labels}
-    parent_options = [None] + list(ordered_labels.keys())
+    parent_options = build_wbs_selection_list(data.get("wbs", []))
+    parent_label_map = {
+        None: "(トップレベル)",
+        **{option["id"]: option["label"] for option in parent_options},
+    }
+    parent_choices = [None] + [option["id"] for option in parent_options]
 
     with st.form("create_wbs_main"):
         wbs_name = st.text_input("WBS名", placeholder="例: フェーズA / 要件定義")
         parent_choice = st.selectbox(
             "親WBS",
-            options=parent_options,
+            options=parent_choices,
             format_func=lambda x: parent_label_map.get(x, parent_label_map[None]),
         )
         col1, col2 = st.columns(2)

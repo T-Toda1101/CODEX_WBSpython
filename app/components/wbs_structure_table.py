@@ -39,6 +39,17 @@ def build_ordered_wbs_label_map(wbs_items: List[Dict]) -> Dict[str, str]:
     return ordered_labels
 
 
+def build_wbs_selection_list(wbs_items: List[Dict]) -> List[Dict[str, str]]:
+    """WBS一覧と同じ階層順でセレクトボックス用の選択肢を組み立てる。"""
+
+    ordered_labels = build_ordered_wbs_label_map(wbs_items)
+    return [
+        {"id": wbs_id, "label": label}
+        for wbs_id, label in ordered_labels.items()
+        if wbs_id
+    ]
+
+
 def collect_descendants(wbs_items: List[Dict], root_id: str) -> Set[str]:
     descendants: Set[str] = set()
 
