@@ -26,6 +26,19 @@ def flatten_wbs_with_levels(wbs_items: List[Dict]) -> List[Dict]:
     return ordered
 
 
+def build_ordered_wbs_label_map(wbs_items: List[Dict]) -> Dict[str, str]:
+    """Return an ordered mapping of WBS ID -> インデント済みラベル."""
+
+    ordered_labels: Dict[str, str] = {}
+    for entry in flatten_wbs_with_levels(wbs_items):
+        item = entry["item"]
+        wbs_id = item.get("id")
+        if not wbs_id:
+            continue
+        ordered_labels[wbs_id] = "　" * entry["level"] + item.get("name", "")
+    return ordered_labels
+
+
 def collect_descendants(wbs_items: List[Dict], root_id: str) -> Set[str]:
     descendants: Set[str] = set()
 
