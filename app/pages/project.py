@@ -13,11 +13,16 @@ def render_project():
     st.caption("統合されたWBS・タスク管理ダッシュボード")
 
     ensure_data_file_exists()
-    data = load_data()
+
+    if "data" not in st.session_state:
+        st.session_state["data"] = load_data()
+
+    data = st.session_state["data"]
     wbs_map = build_wbs_map(data.get("wbs", []))
 
     filter_options = render_filters(data)
     filtered_data = apply_filters(data, filter_options)
+    st.session_state["filtered_data"] = filtered_data
     filtered_wbs_map = build_wbs_map(filtered_data.get("wbs", []))
 
     with st.sidebar:    
