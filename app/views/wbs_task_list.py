@@ -4,16 +4,37 @@ import pandas as pd
 import streamlit as st
 
 from components.kanban import summarize_tasks_by_status
-from components.models import WBSItem
-from components.data_store import delete_wbs_items, save_data
+from components.data_store import delete_tasks, delete_wbs_items, save_data
 from components.wbs_structure_table import (
     build_wbs_dataframe,
     collect_descendants,
     normalize_date_value,
+    parse_iso_date,
 )
 
 SAVE_FEEDBACK_KEY = "wbs_save_feedback"
 SAVE_ERROR_KEY = "wbs_save_errors"
+TASK_SAVE_FEEDBACK_KEY = "task_save_feedback"
+TASK_SAVE_ERROR_KEY = "task_save_errors"
+
+
+def build_task_dataframe(tasks: List[Dict], wbs_display_map: Dict[Optional[str], str]) -> pd.DataFrame:
+    rows = []
+    for task in tasks:
+        rows.append(
+            {
+                "id": task.get("id"),
+                "title": task.get("title"),
+                "wbs_selection": wbs_display_map.get(task.get("wbs_id"), wbs_display_map[None]),
+                "status": task.get("status"),
+                "priority": task.get("priority"),
+                "due": parse_iso_date(task.get("due")),
+                "description": task.get("description"),
+                "delete": False,
+            }
+        )
+    return pd.DataFrame(rows).set_index("id")
+
 
 def render_structure_and_period_table(
     data: Dict[str, List[Dict]],
@@ -150,37 +171,119 @@ def render_structure_and_period_table(
     return edited_df
 
 
+def render_task_table(data: Dict[str, List[Dict]], filtered_tasks: List[Dict]):
+    st.markdown("### タスク一覧")
+    if not filtered_tasks:
+        st.info("タスクがまだありません。右のフォームから追加してください。")
+        return
+
+    counts = summarize_tasks_by_status(filtered_tasks)
+    st.write(" | ".join([f"{status}: {counts.get(status, 0)}件" for status in counts]))
+
+    wbs_display_map: Dict[Optional[str], str] = {None: "(未割当)"}
+    for item in data.get("wbs", []):
+        wbs_id = item.get("id")
+        if not wbs_id:
+            continue
+        wbs_display_map[wbs_id] = item.get("name")
+
+    task_df = build_task_dataframe(filtered_tasks, wbs_display_map)
+    wbs_options = list(wbs_display_map.values())
+    wbs_option_to_id = {name: wbs_id for wbs_id, name in wbs_display_map.items()}
+
+    edited_tasks = st.data_editor(
+        task_df,
+        hide_index=True,
+        column_config={
+            "title": st.column_config.Column("タイトル", required=True),
+            "wbs_selection": st.column_config.SelectboxColumn(
+                "WBS",
+                options=wbs_options,
+                required=True,
+            ),
+            "status": st.column_config.Column("ステータス", disabled=True),
+            "priority": st.column_config.Column("優先度", disabled=True),
+            "due": st.column_config.DateColumn("期日"),
+            "description": st.column_config.Column("詳細", disabled=True),
+            "delete": st.column_config.CheckboxColumn("削除", default=False),
+        },
+        key="task_list_editor",
+    )
+
+    if st.button("変更を保存", key="save_task_updates"):
+        id_to_task = {task.get("id"): task for task in data.get("tasks", [])}
+        delete_targets = set(
+            index for index, row in edited_tasks.iterrows() if bool(row.get("delete"))
+        )
+        updates = 0
+        removed = 0
+        errors = []
+
+        for index, row in edited_tasks.iterrows():
+            task = id_to_task.get(index)
+            if not task or index in delete_targets:
+                continue
+
+            new_title = (row.get("title") or "").strip()
+            if not new_title:
+                errors.append("タイトルは空欄にできません")
+                continue
+
+            selection = row.get("wbs_selection")
+            new_wbs = (
+                wbs_option_to_id.get(selection) if not pd.isna(selection) else None
+            )
+            new_due = normalize_date_value(row.get("due"))
+
+            if (
+                task.get("title") != new_title
+                or task.get("wbs_id") != new_wbs
+                or task.get("due") != new_due
+            ):
+                task["title"] = new_title
+                task["wbs_id"] = new_wbs
+                task["due"] = new_due
+                updates += 1
+
+        if delete_targets:
+            removed = delete_tasks(data, delete_targets)
+
+        if updates and not removed:
+            save_data(data)
+
+        if updates or removed:
+            success_message = "、".join(
+                part
+                for part in [
+                    f"{updates}件のタスク更新" if updates else "",
+                    f"{removed}件のタスク削除" if removed else "",
+                ]
+                if part
+            )
+            if errors:
+                st.session_state[TASK_SAVE_ERROR_KEY] = errors
+            if success_message:
+                st.session_state[TASK_SAVE_FEEDBACK_KEY] = success_message
+            st.rerun()
+
+        if errors and not (updates or removed):
+            st.error("\n".join(errors))
+        elif not errors and not (updates or removed):
+            st.info("変更はありませんでした")
+
+
 def render(data, filtered_data, filtered_wbs_map):
 
     if errors := st.session_state.pop(SAVE_ERROR_KEY, None):
         st.error("\n".join(errors))
+    if errors := st.session_state.pop(TASK_SAVE_ERROR_KEY, None):
+        st.error("\n".join(errors))
 
     if feedback := st.session_state.pop(SAVE_FEEDBACK_KEY, None):
+        st.success(feedback)
+    if feedback := st.session_state.pop(TASK_SAVE_FEEDBACK_KEY, None):
         st.success(feedback)
 
     render_structure_and_period_table(data, filtered_data.get("wbs", []))
 
-    st.markdown("### タスク一覧")
-    if not filtered_data.get("tasks"):
-        st.info("タスクがまだありません。右のフォームから追加してください。")
-        return
-
-    counts = summarize_tasks_by_status(filtered_data["tasks"])
-    st.write(" | ".join([f"{status}: {counts.get(status, 0)}件" for status in counts]))
-
-    task_rows = []
-    for task in filtered_data.get("tasks", []):
-        task_rows.append(
-            {
-                "WBS": filtered_wbs_map.get(task.get("wbs_id"), WBSItem("-", "(未割当)", None, None, None, None, None)).name
-                if task.get("wbs_id")
-                else "(未割当)",
-                "タイトル": task.get("title"),
-                "ステータス": task.get("status"),
-                "優先度": task.get("priority"),
-                "期日": task.get("due"),
-                "詳細": task.get("description"),
-            }
-        )
-
-    st.dataframe(pd.DataFrame(task_rows))
+    render_task_table(data, filtered_data.get("tasks", []))
