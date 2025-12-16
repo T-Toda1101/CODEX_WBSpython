@@ -12,6 +12,9 @@ from components.wbs_structure_table import (
     normalize_date_value,
 )
 
+SAVE_FEEDBACK_KEY = "wbs_save_feedback"
+SAVE_ERROR_KEY = "wbs_save_errors"
+
 def render_structure_and_period_table(
     data: Dict[str, List[Dict]],
     wbs_items: List[Dict],
@@ -63,6 +66,8 @@ def render_structure_and_period_table(
         if st.button("変更を保存", key="save_wbs_dates"):
             updates = 0
             parent_updates = 0
+            rerun_needed = False
+            success_message = ""
             errors = []
             id_to_item = {item.get("id"): item for item in data.get("wbs", [])}
             descendants_map = {
@@ -116,30 +121,43 @@ def render_structure_and_period_table(
 
             removed = delete_wbs_items(data, delete_targets) if delete_targets else 0
 
-            if errors:
-                st.error("\n".join(errors))
-
             if updates or parent_updates or removed:
                 if not removed:
                     save_data(data)
-                st.success(
-                    "、".join(
-                        part
-                        for part in [
-                            f"{updates}件の日付更新" if updates else "",
-                            f"{parent_updates}件の階層更新" if parent_updates else "",
-                            f"{removed}件のWBS削除" if removed else "",
-                        ]
-                        if part
-                    )
+                success_message = "、".join(
+                    part
+                    for part in [
+                        f"{updates}件の日付更新" if updates else "",
+                        f"{parent_updates}件の階層更新" if parent_updates else "",
+                        f"{removed}件のWBS削除" if removed else "",
+                    ]
+                    if part
                 )
-            else:
+                rerun_needed = True
+
+            if errors:
+                if rerun_needed:
+                    st.session_state[SAVE_ERROR_KEY] = errors
+                else:
+                    st.error("\n".join(errors))
+
+            if rerun_needed:
+                if success_message:
+                    st.session_state[SAVE_FEEDBACK_KEY] = success_message
+                st.rerun()
+            elif not errors:
                 st.info("変更はありませんでした")
 
     return edited_df
 
 
 def render(data, filtered_data, filtered_wbs_map):
+
+    if errors := st.session_state.pop(SAVE_ERROR_KEY, None):
+        st.error("\n".join(errors))
+
+    if feedback := st.session_state.pop(SAVE_FEEDBACK_KEY, None):
+        st.success(feedback)
 
     render_structure_and_period_table(data, filtered_data.get("wbs", []))
 

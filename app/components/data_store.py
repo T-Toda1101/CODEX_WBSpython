@@ -28,6 +28,7 @@ def save_data(data: Dict[str, List[Dict]]) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with DATA_FILE.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    st.session_state["data"] = data
 
 
 def build_wbs_map(items: List[Dict]) -> Dict[str, WBSItem]:
