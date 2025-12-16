@@ -110,6 +110,16 @@ def delete_task(data: Dict[str, List[Dict]], task_id: str):
         st.toast("タスクを削除しました", icon="⚠️")
 
 
+def delete_tasks(data: Dict[str, List[Dict]], task_ids: Set[str]) -> int:
+    before = len(data.get("tasks", []))
+    data["tasks"] = [task for task in data.get("tasks", []) if task.get("id") not in task_ids]
+    removed = before - len(data["tasks"])
+    if removed:
+        save_data(data)
+        st.toast(f"{removed}件のタスクを削除しました", icon="⚠️")
+    return removed
+
+
 def delete_wbs_items(data: Dict[str, List[Dict]], wbs_ids: Set[str]) -> int:
     """削除対象のWBSと紐づくタスクのWBS紐付けを外す."""
 
