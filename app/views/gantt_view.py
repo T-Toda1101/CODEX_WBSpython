@@ -117,7 +117,7 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
                     x=[row["start_date"], row["end_date"]],
                     y=[row["display_name"], row["display_name"]],
                     mode="lines",
-                    line=dict(color="#4C78A8", width=50),
+                    line=dict(color="rgba(76,120,168,0.5)", width=40),
                     name="予定",
                     showlegend=first_planned,
                     customdata=[[row["start_date"], row["end_date"]]] * 2,
@@ -171,8 +171,9 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
     chart_end_dt = default_end
     fig.add_vline(
         x=today,
-        line_color="#d62728",
-        line_dash="dash",  # 破線
+        line_color="rgba(214,39,40,0.5)",
+        line_dash="dot",
+        line_width=2,
         row=1,
         col=2,
     )
