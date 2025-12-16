@@ -7,6 +7,7 @@ from components.kanban import summarize_tasks_by_status
 from components.data_store import delete_tasks, delete_wbs_items, save_data
 from components.wbs_structure_table import (
     build_wbs_dataframe,
+    build_ordered_wbs_label_map,
     collect_descendants,
     normalize_date_value,
     parse_iso_date,
@@ -50,18 +51,14 @@ def render_structure_and_period_table(
 
     st.markdown("### WBS構造と期間")
 
-    parent_display_map = {None: "(トップレベル)"}
-    for item in data.get("wbs", []):
-        wbs_id = item.get("id")
-        if not wbs_id:
-            continue
-        parent_display_map[wbs_id] = item.get('name')
+    ordered_labels = build_ordered_wbs_label_map(wbs_items)
+    parent_label_map = {None: "(トップレベル)", **ordered_labels}
+    parent_options = [parent_label_map[None]] + list(ordered_labels.values())
+    parent_option_to_id = {label: wbs_id for wbs_id, label in parent_label_map.items()}
 
     wbs_df["parent_selection"] = wbs_df["parent"].apply(
-        lambda value: parent_display_map.get(value, parent_display_map[None])
+        lambda value: parent_label_map.get(value, parent_label_map[None])
     )
-    parent_options = [v for v in parent_display_map.values() if v]
-    parent_option_to_id = {v: k for k, v in parent_display_map.items()}
     wbs_df = wbs_df.drop(columns=["parent"])
 
     edited_df = st.data_editor(

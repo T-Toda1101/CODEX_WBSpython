@@ -26,7 +26,7 @@ def render_project():
     filtered_wbs_map = build_wbs_map(filtered_data.get("wbs", []))
 
     with st.sidebar:    
-        wbs_creation_form(data, wbs_map)
+        wbs_creation_form(data)
         render_task_form(data, wbs_map)
 
 
