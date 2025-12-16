@@ -168,12 +168,11 @@ def render_period_chart(filtered_wbs_df: pd.DataFrame) -> None:
         barmode="overlay",
         height=chart_height,
         xaxis_title="期間",
-        yaxis_title="WBS (構造順)",
         xaxis_range=[chart_start_dt, chart_end_dt],
         legend_title="凡例",
     )
 
-    fig.update_yaxes(categoryorder="array", categoryarray=y_order)
+    fig.update_yaxes(categoryorder="array", categoryarray=y_order,autorange="reversed")
     fig.update_xaxes(tickformat="%y/%m")
 
     # --------------------------------------
