@@ -22,8 +22,6 @@ def render_task_form(data: Dict):
         options=wbs_options,
         format_func=lambda x: wbs_labels.get(x, "(未割当)"),
     )
-
-    priority = st.selectbox("優先度", ["高", "中", "低"], index=1)
     status = st.selectbox("ステータス", STATUSES, index=0)
 
     description = st.text_area("詳細", height=100)
@@ -36,4 +34,4 @@ def render_task_form(data: Dict):
         due_input = None
 
     if st.button("タスクを追加") and task_title:
-        add_task(data, task_title, selected_wbs, priority, due_input, status, description)
+        add_task(data, task_title, selected_wbs, due_input, status, description)

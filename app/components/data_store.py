@@ -72,7 +72,6 @@ def add_task(
     data: Dict[str, List[Dict]],
     title: str,
     wbs_id: Optional[str],
-    priority: str,
     due_date,
     status: str,
     description: str,
@@ -84,7 +83,6 @@ def add_task(
             "title": title,
             "status": status,
             "wbs_id": wbs_id,
-            "priority": priority,
             "due": due_value,
             "description": description,
         }

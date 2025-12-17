@@ -21,6 +21,5 @@ class Task:
     title: str
     status: str
     wbs_id: Optional[str]
-    priority: str
     due: Optional[str]
     description: str

@@ -10,8 +10,6 @@ def render_task_card(task, wbs_map):
     st.caption(f"WBS: {format_wbs_label(wbs_map, task.get('wbs_id'))}")
 
     meta = []
-    if task.get("priority"):
-        meta.append(f"優先度: {task['priority']}")
     if task.get("due"):
         meta.append(f"期日: {task['due']}")
     if meta:
